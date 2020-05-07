@@ -1,0 +1,31 @@
+{
+  "name": "lightstatic",
+  "version": "0.0.2",
+  "description": "lightweight static files server for development purpose",
+  "main": "src/server.js",
+  "bin": {
+    "lightstatic": "./bin/lightstatic.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "url": "https://github.com/jinge-design/lightstatic.git"
+  },
+  "keywords": [
+    "static",
+    "server",
+    "html5",
+    "file"
+  ],
+  "author": "YuhangGe <abeyuhang@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "address": "^1.1.2",
+    "colors": "^1.4.0",
+    "commander": "^5.1.0",
+    "get-port": "^5.1.1",
+    "mime": "^2.4.5",
+    "open": "^7.0.3"
+  }
+}
