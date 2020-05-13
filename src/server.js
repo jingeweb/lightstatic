@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const getPort = require('get-port');
 const colors = require('colors');
 const address = require('address');
-const mime = require('mime');
+const mime = require('mime-types');
 const open = require('open');
 const _util = require('./util');
 
@@ -16,9 +16,9 @@ function logAccess(status, url) {
 }
 
 function sendFile(res, filepath, gzip) {
-  res.setHeader('Content-Type', mime.getType(path.extname(filepath)) + '; charset=utf-8');
+  res.setHeader('Content-Type', mime.contentType(path.extname(filepath)));
   let stream = fs.createReadStream(filepath, {
-    encoding: 'utf-8'
+    encoding: mime.charset(path.extname(filepath))
   });
   if (gzip) {
     res.setHeader('Content-Encoding', 'gzip');
