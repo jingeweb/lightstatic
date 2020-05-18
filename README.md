@@ -28,8 +28,46 @@ Options:
   --no-log                 do not print any log expect errors
   --no-color               disable color log
   -h, --help               display help for command
+````
 
-Examples:
-  lightstatic
-  lightstatic ./dist -g -5 -o
+## Examples
+
+````bash
+lightstatic
+lightstatic ./dist -g -5 -o
+````
+
+## Middleware
+
+You can use custom middleware by `-m` or `--middleware` option. E.g:
+
+````bash
+lightstatic -m ./some_middleware.js
+````
+
+The middleware file must export a function which accept three arguments: `req` for http request, `res` for http response and `options` for lightstatic bash command options. 
+
+If the function return `false`, lightstatic won't handle request and response any more.
+
+````js
+/** some_middleware.js **/
+
+const { URL } = require('url');
+module.exports = async function(req, res, options) {
+  if (req.url.startsWith('/__proxy/')) {
+    /**
+     * const proxy = ...  // do some actual proxy stuff
+     * req.pipe(proxy).pipe(res);
+     */
+    res.end('proxed!');
+    return false; // lightstatic won't handle request as middleware function return false
+  }
+  const u = new URL(req.url, 'http://host');
+  const delay = u.searchParams.get('delay');
+  if (delay) {
+    console.log('delay', delay);
+    await new Promise(resolve => setTimeout(resolve, Number(delay)));
+  }
+  // lightstatic will continue handle request and response
+}
 ````

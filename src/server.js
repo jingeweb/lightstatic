@@ -37,8 +37,11 @@ function send404(req, res, options) {
   options.access && logAccess(404, req.url);
 }
 
-async function sendDir(res, dirpath, baseUrl) {
-  const _base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+async function sendDir(res, dirpath, baseUrl, baseHref) {
+  let _base = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+  if (baseHref) {
+    _base = baseHref + _base;
+  }
   const list = (await fs.promises.readdir(dirpath)).map(file => {
     return `  <li><a href="${_base}${file}">${file}</a></li>`;
   });
@@ -65,11 +68,17 @@ function bootstrap(options) {
     if (options.delay > 0) {
       await new Promise(resolve => setTimeout(resolve, options.delay));
     }
-    if (middleware && (await middleware(req, res)) === false) {
+    if (middleware && (await middleware(req, res, options)) === false) {
       options.access && console.log('MIDDLEWARE'.yellow, req.url.cyan);      ;
       return;
     }
     let url = req.url;
+
+    const qi = url.indexOf('?');
+    if (qi > 0) {
+      url = url.substring(0, qi);
+    }
+
     if (baseHref !== '/') {
       if (url === '/') {
         res.setHeader('Location', baseHref);
@@ -79,7 +88,7 @@ function bootstrap(options) {
         return;
       } else if (!url.startsWith(baseHref)) {
         res.writeHead(403);
-        res.end('base href not match.');
+        res.end(`request url must starts with base href "${baseHref}"`);
         options.access && logAccess(403, req.url);
         return;
       } else {
@@ -90,7 +99,7 @@ function bootstrap(options) {
     let filepath = path.join(root, url);
     let stat = await _util.getStat(filepath);
     if (stat && stat.isDirectory() && !options.html5) {
-      await sendDir(res, filepath, req.url);
+      await sendDir(res, filepath, url, baseHref === '/' ? '' : baseHref.substring(0, baseHref.length - 1));
       options.access && logAccess(200, req.url);
       return;
     }

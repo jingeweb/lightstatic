@@ -1,6 +1,6 @@
 {
   "name": "lightstatic",
-  "version": "0.0.5",
+  "version": "1.0.0",
   "description": "lightweight static files server for development purpose",
   "main": "src/server.js",
   "bin": {
