@@ -16,7 +16,7 @@ program
  .usage('[path] [options]')
  .arguments('[path]').action(root => options.root = root || '.')
  .option('-b, --bind <string>', 'ip address to bind', '0.0.0.0')
- .option('-p, --port <number>', 'port to listen. if the specified port is not avaiable, sfserver will find a free port instead', 8080)
+ .option('-p, --port <number>', 'port to listen. if the specified port is not avaiable, lightstatic will find a free port instead', 8080)
  .option('-g, --gzip', 'gzip encode response content', false)
  .option('-o, --open', 'open browser window after starting the server', false)
  .option('-5, --html5', 'use html5 mode url route(history api fallback like webpack-dev-server)', false)
