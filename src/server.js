@@ -45,7 +45,7 @@ async function sendDir(res, dirpath, baseUrl) {
   if (baseUrl && baseUrl !== '/') {
     list.unshift(`  <li><a href="${path.dirname(_base)}">../</a></li>`);
   }
-  res.write(
+  res.end(
     DIR_RENDER_TPL
       .replace(/<!--title-->/g, `Index of ${_base}`)
       .replace('<!--files-->', `${list.join('\n')}`)
@@ -56,13 +56,19 @@ function bootstrap(options) {
   if (options.noColor) {
     colors.disable();
   }
-
+  const middleware = options.middleware ? require(_util.resolvePath(options.middleware)) : null;
   // TODO: implement https support 
   // const cert = options.cert ? resolvePath(options.cert) : null;
   const root = _util.resolvePath(options.root);
   const baseHref = _util.getBaseHref(options.baseHref);
-
   async function handle(req, res) {
+    if (options.delay > 0) {
+      await new Promise(resolve => setTimeout(resolve, options.delay));
+    }
+    if (middleware && (await middleware(req, res)) === false) {
+      options.access && console.log('MIDDLEWARE'.yellow, req.url.cyan);      ;
+      return;
+    }
     let url = req.url;
     if (baseHref !== '/') {
       if (url === '/') {

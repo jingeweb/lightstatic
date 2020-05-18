@@ -1,6 +1,6 @@
 {
   "name": "lightstatic",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "lightweight static files server for development purpose",
   "main": "src/server.js",
   "bin": {
@@ -26,6 +26,6 @@
     "commander": "^5.1.0",
     "get-port": "^5.1.1",
     "mime-types": "^2.1.27",
-    "open": "^7.0.3"
+    "open": "^7.0.4"
   }
 }

@@ -11,16 +11,18 @@ const options = {};
 
 program
  .storeOptionsAsProperties(false)
- .name('sfserver')
- .usage('[path] [options]')
+ .name(pkg.name)
  .version(pkg.version)
+ .usage('[path] [options]')
  .arguments('[path]').action(root => options.root = root || '.')
  .option('-b, --bind <string>', 'ip address to bind', '0.0.0.0')
  .option('-p, --port <number>', 'port to listen. if the specified port is not avaiable, sfserver will find a free port instead', 8080)
  .option('-g, --gzip', 'gzip encode response content', false)
  .option('-o, --open', 'open browser window after starting the server', false)
  .option('-5, --html5', 'use html5 mode url route(history api fallback like webpack-dev-server)', false)
- .option('--index <file>', 'index file to redirect under html5 mode', 'index.html')
+ .option('-i, --index <file>', 'index file to redirect under html5 mode', 'index.html')
+ .option('-d, --delay <number>', 'delay in milliseconds for response' , 0)
+ .option('-m, --middleware <file>', 'middleware file to use')
 //  .option('--cert <path>', 'certificate to enable https. NOT implement yet!')
  .option('--base-href <path>', 'server base href, useful when under nginx subpath')
 //  .option('--proxy-prefix <string>', 'proxy request to proxy-remote server if request url starts with proxy-prefix', '/__api/')
@@ -36,4 +38,6 @@ if (!options.log) {
   options.access = false;
 }
 options.port = Number(options.port);
+options.delay = Number(options.delay);
+
 bootstrap(options);
