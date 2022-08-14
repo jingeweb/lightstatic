@@ -3,4 +3,3 @@ node_modules
 .tmp
 .idea
 **/.DS_Store
-/lib
