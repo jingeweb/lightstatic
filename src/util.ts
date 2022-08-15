@@ -1,10 +1,11 @@
-const fs = require('fs').promises;
-const path = require('path');
-const homeDir = require('os').homedir();
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
 
-const CWD = process.cwd();
+export const homeDir = os.homedir();
+export const CWD = process.cwd();
 
-function resolvePath(filepath) {
+export function resolvePath(filepath: string) {
   if (filepath.startsWith('~')) {
     return path.join(homeDir, filepath.substring(1));
   } else {
@@ -12,15 +13,15 @@ function resolvePath(filepath) {
   }
 }
 
-async function getStat(file) {
+export async function getStat(file: string) {
   try {
     return await fs.stat(file);
-  } catch(ex) {
+  } catch (ex) {
     return null;
   }
 }
 
-function getBaseHref(href) {
+export function getBaseHref(href: string) {
   href = href || '/';
   if (!href.startsWith('/')) {
     href = '/' + href;
@@ -30,11 +31,3 @@ function getBaseHref(href) {
   }
   return href;
 }
-
-
-module.exports = {
-  getBaseHref,
-  getStat,
-  resolvePath
-};
-

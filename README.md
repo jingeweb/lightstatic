@@ -1,6 +1,6 @@
 # lightstatic
 
-> lightweight static file server for development purpose
+> lightweight static file server
 
 ## Install
 
@@ -14,27 +14,29 @@ npm install -g lightstatic
 Usage: lightstatic [path] [options]
 
 Options:
-  -V, --version            output the version number
-  -b, --bind <string>      ip address to bind (default: "0.0.0.0")
-  -p, --port <number>      port to listen. if the specified port is not avaiable, lightstatic will find a free port instead (default: 8080)
-  -g, --gzip               gzip encode response content (default: false)
-  -o, --open               open browser window after starting the server (default: false)
-  -5, --html5              use html5 mode url route(history api fallback like webpack-dev-server) (default: false)
-  -i, --index <file>       index file to redirect under html5 mode (default: "index.html")
-  -d, --delay <number>     delay in milliseconds for response (default: 0)
-  -m, --middleware <file>  middleware file to use. see https://github.com/jinge-design/lightstatic#middleware
-  --base-href <path>       server base href, useful when under nginx subpath
-  --no-access              do not print access log
-  --no-log                 do not print any log expect errors
-  --no-color               disable color log
-  -h, --help               display help for command
+  -V, --version                        output the version number
+  -b, --bind <string>                  ip address to bind (default: "0.0.0.0")
+  -p, --port <number>                  port to listen. if the specified port is not avaiable, lightstatic will find a free port instead (default: "8080")
+  -g, --gzip                           gzip encode response content (default: false)
+  -o, --open                           open browser window after starting the server (default: false)
+  -5, --html5                          use html5 mode url route(history api fallback like webpack-dev-server) (default: false)
+  -i, --index <file>                   index file to redirect under html5 mode (default: "index.html")
+  -d, --delay <number>                 delay in milliseconds for response (default: "0")
+  -m, --middleware <file>              middleware file to use. see https://github.com/jingeweb/lightstatic#middleware
+  -s, --store-in-memory                store(cache) static files into memory (default: false)
+  -r, --cache-forever-regexp <regexp>  cache file forever if match regexp (default: "")
+  -l, --log-dir <directory>            write logs to directory (default: "")
+  --base-href <path>                   server base href, useful when under nginx subpath
+  --no-access-log                      do not print access log
+  --no-color                           disable color log
+  -h, --help                           display help for command
 ````
 
 ## Examples
 
 ````bash
-lightstatic
-lightstatic ./dist -g -5 -o
+lightstatic ./dist -5 -o # for local development server
+lightstatic -5 -s -r '\w+\.[0-9a-z]{16}\.(js|css|png|svg|jpg)$' -l ./log # for online static  spa server
 ````
 
 ## Middleware
