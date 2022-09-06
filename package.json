@@ -40,18 +40,18 @@
   },
   "devDependencies": {
     "@types/mime-types": "^2.1.1",
-    "@types/node": "^18.7.3",
-    "@typescript-eslint/eslint-plugin": "^5.33.0",
-    "@typescript-eslint/parser": "^5.33.0",
-    "esbuild": "^0.15.3",
-    "eslint": "^8.22.0",
+    "@types/node": "^18.7.15",
+    "@typescript-eslint/eslint-plugin": "^5.36.2",
+    "@typescript-eslint/parser": "^5.36.2",
+    "esbuild": "^0.15.7",
+    "eslint": "^8.23.0",
     "eslint-config-prettier": "^8.5.0",
-    "eslint-import-resolver-typescript": "^2.7.1",
+    "eslint-import-resolver-typescript": "^3.5.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.2.1",
     "husky": "^8.0.1",
     "lint-staged": "^13.0.3",
     "prettier": "^2.7.1",
-    "typescript": "^4.7.4"
+    "typescript": "^4.8.2"
   }
 }
