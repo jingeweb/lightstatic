@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+echo '+cargo check'
+cargo check
+echo '+cargo fmt -- --check'
+cargo fmt
+echo '+cargo clippy --fix -D warnings'
+cargo clippy --fix --allow-dirty -- -D warnings
+
+[[ -n $(git status -s) ]] && echo 'code modified, commit it again.' && exit 1
+
+exit 0

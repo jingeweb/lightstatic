@@ -1,6 +1,6 @@
 {
   "name": "lightstatic",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "lightweight static files server",
   "main": "lib/index.js",
   "types": "src/index.ts",
@@ -8,8 +8,6 @@
     "lightstatic": "./bin/lightstatic.js"
   },
   "scripts": {
-    "dev": "WATCH=true npm run build",
-    "build": "rm -rf lib && node ./scripts/esbuild.js",
     "lint": "tsc --noEmit && eslint './{src,scripts}/**/*.{js,ts}' --fix",
     "lint-staged": "lint-staged",
     "prepare": "husky install"
@@ -27,31 +25,5 @@
     "file"
   ],
   "author": "YuhangGe <abeyuhang@gmail.com>",
-  "license": "ISC",
-  "dependencies": {
-    "address": "^1.2.0",
-    "colors": "^1.4.0",
-    "commander": "^9.4.0",
-    "get-port": "^6.1.2",
-    "mime-types": "^2.1.35",
-    "open": "^8.4.0",
-    "winston": "^3.8.1",
-    "winston-daily-rotate-file": "^4.7.1"
-  },
-  "devDependencies": {
-    "@types/mime-types": "^2.1.1",
-    "@types/node": "^18.7.15",
-    "@typescript-eslint/eslint-plugin": "^5.36.2",
-    "@typescript-eslint/parser": "^5.36.2",
-    "esbuild": "^0.15.7",
-    "eslint": "^8.23.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-import-resolver-typescript": "^3.5.0",
-    "eslint-plugin-import": "^2.26.0",
-    "eslint-plugin-prettier": "^4.2.1",
-    "husky": "^8.0.1",
-    "lint-staged": "^13.0.3",
-    "prettier": "^2.7.1",
-    "typescript": "^4.8.2"
-  }
+  "license": "ISC"
 }

@@ -5,7 +5,7 @@
 ## Install
 
 ````bash
-npm install -g lightstatic
+cargo install lightstatic
 ````
 
 ## Usage
@@ -22,7 +22,6 @@ Options:
   -5, --html5                          use html5 mode url route(history api fallback like webpack-dev-server) (default: false)
   -i, --index <file>                   index file to redirect under html5 mode (default: "index.html")
   -d, --delay <number>                 delay in milliseconds for response (default: "0")
-  -m, --middleware <file>              middleware file to use. see https://github.com/jingeweb/lightstatic#middleware
   -s, --store-in-memory                store(cache) static files into memory (default: false)
   -r, --cache-forever-regexp <regexp>  cache file forever if match regexp (default: "")
   -l, --log-dir <directory>            write logs to directory (default: "")
