@@ -4,7 +4,7 @@ node_modules
 .idea
 **/.DS_Store
 /lib
-
+/logs
 
 # Added by cargo
 
