@@ -5,7 +5,7 @@ use async_std::{
   path::Path,
   stream::StreamExt,
 };
-use http_types::{mime, Mime};
+use http_types::{mime::*, Mime};
 use tide::{Body, Request, Response};
 
 use crate::config::AppConfig;
@@ -60,9 +60,23 @@ pub fn get_mime(file: &Path) -> Mime {
 }
 
 pub fn get_mime_from_ext(ext: Option<&str>) -> Mime {
-  ext
-    .and_then(Mime::from_extension)
-    .unwrap_or(mime::BYTE_STREAM)
+  let Some(ext) = ext else {
+    return BYTE_STREAM;
+  };
+  match ext {
+    "html" => HTML,
+    "js" | "mjs" | "jsonp" | "ts" | "tsx" | "jsx" => JAVASCRIPT,
+    "css" => CSS,
+    "jpeg" | "jpg" => JPEG,
+    "icon" | "ico" => ICO,
+    "png" => PNG,
+    "wasm" => WASM,
+    "json" => JSON,
+    "svg" => SVG,
+    "xml" => XML,
+    "txt" => PLAIN,
+    _ => BYTE_STREAM
+  }
 }
 
 pub async fn send_file(
