@@ -1,6 +1,6 @@
 minimumReleaseAgeExclude:
-  - lightstatic-darwin-arm64@2.0.0
-  - lightstatic-darwin-x64@2.0.0
-  - lightstatic-linux-arm64@2.0.0
-  - lightstatic-linux-x64@2.0.0
-  - lightstatic-win-x64@2.0.0
+  - lightstatic-darwin-arm64@2.1.0
+  - lightstatic-darwin-x64@2.1.0
+  - lightstatic-linux-arm64@2.1.0
+  - lightstatic-linux-x64@2.1.0
+  - lightstatic-win-x64@2.1.0

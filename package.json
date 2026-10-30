@@ -35,7 +35,7 @@
     "build": "node scripts/build-binary.mjs",
     "build:debug": "node scripts/build-binary.mjs --debug",
     "release:patch": "npm version patch",
-    "version": "node scripts/sync-version.mjs && git add platform package.json",
+    "version": "node scripts/sync-version.mjs && git add platform package.json Cargo.toml Cargo.lock",
     "prepare": "husky"
   },
   "optionalDependencies": {

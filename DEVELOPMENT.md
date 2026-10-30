@@ -9,6 +9,7 @@
      - 同步 `platform/*/package.json` 的 `version`
      - 同步根包 `optionalDependencies`（精确版本，不是 `^`）
      - 同步 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude`
+     - 同步 `Cargo.toml` / `Cargo.lock` 的 `[package].version`
    - npm 自动 commit + 打 tag
 2. **push**（含 tag）
 3. **CI**：`.github/workflows/ci.yml` 矩阵交叉编译 5 个目标 → 各平台 `npm publish --provenance` → 全部成功后 `publish-root` 发根包
