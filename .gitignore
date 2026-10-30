@@ -9,3 +9,17 @@ node_modules
 # Added by cargo
 
 /target
+
+# npm：husky 生成的钩子转发脚本
+/.husky/_
+
+# 各平台二进制由 CI 交叉编译产出，不进仓库
+/platform/*/lightstatic
+/platform/*/lightstatic.exe
+
+# npm pack 产物
+/*.tgz
+
+# 不锁定 lockfile：平台包通过 optionalDependencies 单独发版，
+# 首次发布前锁文件无法解析会直接让 `npm ci` 失败
+/package-lock.json

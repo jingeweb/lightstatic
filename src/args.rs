@@ -42,12 +42,6 @@ pub struct Args {
   /// delay in milliseconds for response (default: "0")
   #[clap(short, long, value_parser, default_value_t = 0)]
   pub delay: u64,
-  /// store(cache) static files into memory (default: false)
-  #[clap(short, long, value_parser, default_value_t = false)]
-  pub cache_in_memory: bool,
-  /// cache files which match regexp forever, if specified.
-  #[clap(short, long, value_parser, value_name = "REGEXP")]
-  pub regex_immutable: Option<regex::Regex>,
   /// write logs to directory, if specified.
   #[clap(short, long, value_parser, value_name = "DIRECTORY")]
   pub log_dir: Option<String>,
@@ -60,39 +54,46 @@ pub struct Args {
   /// disable color log
   #[clap(short = 'C', long, value_parser, default_value_t = false)]
   pub no_color: bool,
-  /// send signal to running process, action can be "stop" or "refresh"
-  #[clap(short, long, value_name = "ACTION")]
-  pub signal: Option<String>,
+}
+
+/// 把 `--base-href` 规范化为 `"/xxx/"` 形式；空值/`"/"` 视为未设置。
+pub fn normalize(args: &mut Args) {
+  let Some(base_href) = &args.base_href else {
+    return;
+  };
+  let trimmed = base_href.trim().to_string();
+  if is_empty_root_url(&trimmed) {
+    args.base_href = None;
+    return;
+  }
+  let mut bh = trimmed;
+  if !bh.ends_with('/') {
+    bh.push('/');
+  }
+  if !bh.starts_with('/') {
+    bh.insert(0, '/');
+  }
+  args.base_href = Some(bh);
+}
+
+/// 参数组合的合法性检查，不合法时直接退出（与旧行为保持一致）。
+pub fn validate(args: &Args) {
+  let missing_path = args
+    .serve_path
+    .as_deref()
+    .is_none_or(|path| path.trim().is_empty());
+  if missing_path {
+    eprintln!("error: missing serve path\n\nUSAGE:\n    lightstatic [OPTIONS] <PATH>\n\nFor more information try --help\n");
+    process::exit(-1);
+  }
 }
 
 pub fn get_args() -> Args {
   let mut args = Args::parse();
+  normalize(&mut args);
   if args.log_dir.is_some() || args.no_color {
     colored::control::set_override(false);
   }
-  if args.regex_immutable.is_some() && !args.cache_in_memory {
-    eprintln!("--regex-immutable only effect with --cache-in-memory");
-    process::exit(-1);
-  }
-  if args.signal.is_none() && args.serve_path.is_none() {
-    eprintln!("error: missing serve path\n\nUSAGE:\n    lightstatic [OPTIONS] <PATH>\n\nFor more information try --help\n");
-    process::exit(-1);
-  }
-
-  if let Some(base_href) = &mut args.base_href {
-    if is_empty_root_url(base_href.trim()) {
-      args.base_href.take();
-    } else {
-      if !base_href.ends_with('/') {
-        base_href.push('/');
-      }
-      if !base_href.starts_with('/') {
-        let mut bh = "/".to_string();
-        bh.push_str(base_href);
-        args.base_href.replace(bh);
-      }
-    }
-  }
-
+  validate(&args);
   args
 }

@@ -1,3 +1,22 @@
+# 根包只发布 bin/ 下的启动器；平台二进制由 lightstatic-<os>-<arch> 子包提供。
+# Rust 源码、构建产物和开发期工具链都不需要进 tarball。
+
+/src/
+/target/
+/platform/
+/*.rs
+/Cargo.toml
+/Cargo.lock
+/rustfmt.toml
+/.rustfmt.toml
+
+/scripts/
+/.husky/
+/.github/
+package-lock.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
 node_modules
 .vscode
 .tmp

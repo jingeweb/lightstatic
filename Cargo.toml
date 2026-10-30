@@ -1,36 +1,85 @@
 [package]
 name = "lightstatic"
-version = "1.0.1"
+version = "2.0.0"
 edition = "2021"
-description = "lightweight static file server"
+description = "lightweight static file server for local development only"
 license = "MIT"
 keywords = ["static", "server", "file-server"]
 documentation = "https://github.com/jingeweb/lightstatic"
+# The crate is published to crates.io, the npm wrapper to npm.
+# Keep the node.js side out of the .crate tarball.
+exclude = [
+  "bin/",
+  "platform/",
+  "scripts/",
+  "node_modules/",
+  ".husky/",
+  ".github/",
+  "package.json",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  ".npmignore",
+  "*.tgz",
+]
 
 [[bin]]
 name = "lightstatic"
+path = "src/main.rs"
+
+[lib]
+name = "lightstatic"
+path = "src/lib.rs"
+
+# 集成测试统一放在 test/ 目录（cargo 默认的 tests/ 之外），逐个模块声明。
+[[test]]
+name = "util"
+path = "test/util.rs"
+
+[[test]]
+name = "args"
+path = "test/args.rs"
+
+[[test]]
+name = "helper"
+path = "test/helper.rs"
+
+[[test]]
+name = "server_core"
+path = "test/server_core.rs"
+
+[[test]]
+name = "logger"
+path = "test/logger.rs"
+
+[[test]]
+name = "e2e"
+path = "test/e2e.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tide = { version = "0.16", default-features=false, features=["h1-server"] }
+tide = { version = "0.16.0", default-features = false, features = ["h1-server"] }
 http-types = { version = "2.12.0" }
-clap = { version = "4.5.16", features = ["derive"] }
-async-std = { version = "1.12.0", features=["attributes"] }
-futures = { version = "0.3.30" }
-ahash = { version = "0.8.11" }
-regex = { version = "1.10.6" }
-dirs = { version = "4.0" }
-path-absolutize = { version = "3.1.1" }
-colored = { version = "2.1.0" }
-port-selector = { version = "0.1" }
-local-ip-address = { version = "0.4" }
-open = { version = "5.3" }
-log = { version = "0.4" }
-fern = { version = "0.6", features=["date-based"] }
-chrono = { version = "0.4" }
-signal-hook = { version = "0.3" }
-signal-hook-async-std = { version = "0.2" }
-async-compression = { version = "0.3", features=["gzip", "futures-io"] }
-flate2 = { version = "1.0", features = ["zlib-ng"], default-features = false }
-libc = { version = "0.2" }
+clap = { version = "4.6.7", features = ["derive"] }
+async-std = { version = "1.13.2", features = ["attributes"] }
+percent-encoding = { version = "2.3" }
+dirs = { version = "7.0.0" }
+path-absolutize = { version = "4.0.1" }
+colored = { version = "3.1.1" }
+port-selector = { version = "0.1.7" }
+local-ip-address = { version = "0.6.13" }
+open = { version = "5.4.5" }
+log = { version = "0.4.34" }
+fern = { version = "0.7.1", features = ["date-based"] }
+chrono = { version = "0.4.45" }
+async-compression = { version = "0.4.51", features = ["gzip", "futures-io"] }
+
+# 优雅退出是 unix-only：signal-hook-async-std 依赖 std::os::unix::net::UnixStream
+[target.'cfg(unix)'.dependencies]
+signal-hook = { version = "0.4.5" }
+signal-hook-async-std = { version = "0.4.0" }
+
+[dev-dependencies]
+# 仅测试用来校验 gzip 响应体
+flate2 = { version = "1.1.10" }

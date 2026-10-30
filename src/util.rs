@@ -1,7 +1,3 @@
-// use std::{os::unix::prelude::OsStrExt};
-
-use std::os::unix::prelude::OsStrExt;
-
 use async_std::path::{Path, PathBuf};
 use path_absolutize::Absolutize;
 
@@ -10,24 +6,23 @@ use path_absolutize::Absolutize;
 /// 注意此函数不是最高效的版本，没有通过 Cow 来避免返回值和入参一致时复用入参（避免分配内存），
 /// 并且 dirs::home_dir() 也每次会分配内存，因此不适用于高频调用场景。
 pub fn resolve_path(base_path: &Path, file_path: &Path) -> PathBuf {
-  let first_char = file_path.as_os_str().as_bytes()[0];
-  if first_char == b'/' {
-    // println!("return absolute filepath");
-    PathBuf::from(file_path)
-  } else if first_char == b'~' {
+  if file_path.is_absolute() {
+    return PathBuf::from(file_path);
+  }
+
+  let raw = file_path.to_string_lossy();
+  if let Some(rest) = raw.strip_prefix('~') {
     // 此处 dirs.home_dir() 会每次调用都分配内存。
-    let home_dir = PathBuf::from(dirs::home_dir().unwrap());
-    let path_str = file_path.to_str().unwrap();
-    home_dir.join(&path_str[1..])
-  } else {
-    type StdPath = std::path::Path;
-    let z = StdPath::new(file_path)
-      .absolutize_from(StdPath::new(base_path))
-      .unwrap();
-    match z {
-      std::borrow::Cow::Owned(z) => PathBuf::from(z),
-      std::borrow::Cow::Borrowed(z) => PathBuf::from(z),
-    }
+    let home_dir = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/"));
+    return PathBuf::from(home_dir).join(rest.trim_start_matches(['/', '\\']));
+  }
+
+  type StdPath = std::path::Path;
+  // path-absolutize 4.x 不再把结果包在 Result 里。
+  let z = StdPath::new(file_path.as_os_str()).absolutize_from(StdPath::new(base_path.as_os_str()));
+  match z {
+    std::borrow::Cow::Owned(z) => PathBuf::from(z),
+    std::borrow::Cow::Borrowed(z) => PathBuf::from(z),
   }
 }
 
@@ -38,59 +33,15 @@ pub fn is_empty_root_url(p: &str) -> bool {
   p.chars().next().map(|c| c == '/').unwrap_or(true)
 }
 
-#[test]
-fn test_resolve_path() {
-  let home = PathBuf::from(dirs::home_dir().unwrap());
-  let cwd = PathBuf::from("/pa/pb/pc/");
-  assert_eq!(
-    "/a/b/c",
-    resolve_path(&cwd, &PathBuf::from("/a/b/c"))
-      .to_str()
-      .unwrap()
-  );
-  assert_eq!(
-    home.join("a/b/c"),
-    resolve_path(&cwd, &PathBuf::from("~a/b/c"))
-  );
-  assert_eq!(
-    cwd.join("a/b/c"),
-    resolve_path(&cwd, &PathBuf::from("a/b/c"))
-  );
-  assert_eq!(
-    cwd.join("a/b/c"),
-    resolve_path(&cwd, &PathBuf::from("./a/b/c"))
-  );
-  assert_eq!(
-    "/pa/pb/a/b/c",
-    resolve_path(&cwd, &PathBuf::from("../a/b/c"))
-      .to_str()
-      .unwrap()
-  );
-  assert_eq!(
-    "/pa/a/b/c",
-    resolve_path(&cwd, &PathBuf::from("../../a/b/c"))
-      .to_str()
-      .unwrap()
-  );
-  assert_eq!(
-    "/a/b/c",
-    resolve_path(&cwd, &PathBuf::from("../../../a/b/c"))
-      .to_str()
-      .unwrap()
-  );
-  assert_eq!(
-    "/a/b/c",
-    resolve_path(&cwd, &PathBuf::from("../../../../a/b/c"))
-      .to_str()
-      .unwrap()
-  );
-
-  // let a = PathBuf::from("/a");
-  // {
-  //   let mut b = resolve_path(&cwd, &a);
-  //   b.push(PathBuf::from("bb"));
-  //   println!("{:?}", b);
-  // }
-  // println!("{:?}", a);
-  // panic!("")
+/// 校验 `path` 规范化之后仍然位于 `root`（已规范化）之内。
+///
+/// 用于阻断通过符号链接读到根目录之外的文件：`root/secret -> /etc/passwd`。
+pub async fn is_inside_root(root_canonical: &Path, path: &Path) -> bool {
+  match (
+    async_std::fs::canonicalize(root_canonical).await,
+    async_std::fs::canonicalize(path).await,
+  ) {
+    (Ok(root), Ok(path)) => path.starts_with(&root),
+    _ => false,
+  }
 }

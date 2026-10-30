@@ -1,0 +1,25 @@
+{
+  "name": "lightstatic-linux-arm64",
+  "version": "2.0.0",
+  "description": "lightstatic prebuilt binary for Linux arm64",
+  "homepage": "https://github.com/jingeweb/lightstatic#readme",
+  "bugs": {
+    "url": "https://github.com/jingeweb/lightstatic/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jingeweb/lightstatic.git"
+  },
+  "author": "YuhangGe <abeyuhang@gmail.com>",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "preferUnplugged": true,
+  "files": [
+    "lightstatic"
+  ]
+}

@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# 提交前统一格式并做静态检查；任何一步失败都会中断本次 commit。
+set -e
+
+# 1) 自动格式化，并把格式化结果并入本次提交
+cargo fmt
+git add -u -- '*.rs'
+
+# 2) clippy：警告即失败
+cargo clippy --all-targets -- -D warnings

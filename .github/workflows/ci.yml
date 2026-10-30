@@ -1,0 +1,110 @@
+name: build and release
+
+# Builds the CLI on every supported target and publishes one npm package per
+# platform (`lightstatic-<os>-<arch>`), then the root `lightstatic` package that
+# pulls the matching one in through optionalDependencies.
+#
+# Requires npm "trusted publishing" (OIDC) for all six packages, or a
+# NODE_AUTH_TOKEN secret with publish rights — `npm publish --provenance`
+# needs `id-token: write`.
+
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.platform.os_name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os_name: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: lightstatic
+          - os_name: linux-arm64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            bin: lightstatic
+          - os_name: darwin-x64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: lightstatic
+          - os_name: darwin-arm64
+            os: macOS-latest
+            target: aarch64-apple-darwin
+            bin: lightstatic
+          - os_name: win-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: lightstatic.exe
+    env:
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          toolchain: stable
+          args: '--locked --release'
+          strip: true
+
+      - name: Copy binary into platform package
+        shell: bash
+        run: |
+          mkdir -p platform/${{ matrix.platform.os_name }}
+          mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} \
+             platform/${{ matrix.platform.os_name }}/
+
+      # 幂等：已经发布过的版本直接跳过，这样重跑不会因为 "duplicate version" 整条流水线失败
+      - name: Publish platform package
+        working-directory: platform/${{ matrix.platform.os_name }}
+        shell: bash
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "${name}@${version} already in registry — skipping"
+          else
+            npm publish --provenance --access public
+          fi
+
+  publish-root:
+    name: publish lightstatic
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      # No install step on purpose: `npm publish` only needs package.json and
+      # bin/, and `--ignore-scripts` skips the dev-only husky `prepare` hook.
+      - name: Publish root package
+        shell: bash
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "${name}@${version} already in registry — skipping"
+          else
+            npm publish --provenance --access public --ignore-scripts
+          fi

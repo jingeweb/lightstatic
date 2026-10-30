@@ -76,23 +76,22 @@ fn log_listening<T: Display>(ip: T, port: u16, base: &Option<String>) {
   info!("  http://{}:{}", ip, port);
 }
 
-pub fn log_startup_info(args: &args::Args, cached_store_file_size: Option<usize>) {
-  let cached_store_file_size =
-    cached_store_file_size.map_or("".into(), |s| format!(", with {} files cached.", s));
+pub fn log_startup_info(args: &args::Args, port: u16) {
   info!(
-    "{}{}{}",
+    "{}{}",
     "Starting up lightstatic, serving: ".yellow(),
     args.serve_path.as_ref().unwrap().cyan(),
-    cached_store_file_size.yellow()
   );
   info!("{}", "Available on:".yellow());
   let bind_all = args.host.eq("0.0.0.0");
   if bind_all {
-    let ip = local_ip_address::local_ip().unwrap();
-    log_listening(ip, args.port, &args.base_href);
-    log_listening("127.0.0.1", args.port, &args.base_href);
+    match local_ip_address::local_ip() {
+      Ok(ip) => log_listening(ip, port, &args.base_href),
+      Err(err) => error!("{} {}", "Could not detect a LAN address:".yellow(), err),
+    }
+    log_listening("127.0.0.1", port, &args.base_href);
   } else {
-    log_listening(&args.host, args.port, &args.base_href);
+    log_listening(&args.host, port, &args.base_href);
   }
   if args.html5 {
     info!("Html5 route mode rewrite to {}", args.index.cyan());
@@ -104,8 +103,10 @@ pub fn log_startup_info(args: &args::Args, cached_store_file_size: Option<usize>
     } else {
       args.host.as_str()
     };
-    let url = format!("http://{}:{}", host, args.port);
-    open::that(url).unwrap();
+    let url = format!("http://{}:{}", host, port);
+    if let Err(err) = open::that(&url) {
+      error!("Failed to open browser at {}: {}", url, err);
+    }
   }
 }
 

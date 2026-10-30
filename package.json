@@ -1,0 +1,51 @@
+{
+  "name": "lightstatic",
+  "version": "2.0.0",
+  "description": "Lightweight static file server with gzip and html5 history fallback, written in Rust. For local development only — do not use in production.",
+  "keywords": [
+    "static",
+    "server",
+    "static-server",
+    "file-server",
+    "html5",
+    "cli",
+    "rust"
+  ],
+  "homepage": "https://github.com/jingeweb/lightstatic",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jingeweb/lightstatic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jingeweb/lightstatic/issues"
+  },
+  "author": "YuhangGe <abeyuhang@gmail.com>",
+  "license": "MIT",
+  "bin": {
+    "lightstatic": "bin/lightstatic.js"
+  },
+  "files": [
+    "bin/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build-binary.mjs",
+    "build:debug": "node scripts/build-binary.mjs --debug",
+    "release:patch": "npm version patch",
+    "version": "node scripts/sync-version.mjs && git add platform package.json",
+    "prepare": "husky"
+  },
+  "optionalDependencies": {
+    "lightstatic-darwin-arm64": "2.0.0",
+    "lightstatic-darwin-x64": "2.0.0",
+    "lightstatic-linux-arm64": "2.0.0",
+    "lightstatic-linux-x64": "2.0.0",
+    "lightstatic-win-x64": "2.0.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
