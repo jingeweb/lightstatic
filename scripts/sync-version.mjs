@@ -15,6 +15,7 @@
  * 届时手动跑一次 `pnpm install --lockfile-only` 即可（脚本结束会提示）。
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -136,6 +137,28 @@ const lockFile = path.join(root, 'pnpm-lock.yaml');
 if (existsSync(lockFile)) {
   process.stdout.write(
     '[lightstatic] 平台包发布后记得刷新 lock：pnpm install --lockfile-only\n'
+  );
+}
+
+// 把改过的文件加入暂存区：npm/pnpm 的 `version` 只会提交已暂存的内容。
+const stageCandidates = [
+  'platform',
+  'package.json',
+  'Cargo.toml',
+  'Cargo.lock',
+  'pnpm-workspace.yaml',
+];
+const stageFiles = stageCandidates.filter((entry) =>
+  existsSync(path.join(root, entry))
+);
+try {
+  execFileSync('git', ['add', '--', ...stageFiles], {
+    cwd: root,
+    stdio: 'ignore',
+  });
+} catch (error) {
+  process.stdout.write(
+    `[lightstatic] warn: git add failed, 请手动暂存 ${stageFiles.join(' ')}：${error.message}\n`
   );
 }
 
