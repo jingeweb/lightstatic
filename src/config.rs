@@ -2,6 +2,9 @@ use crate::args;
 use crate::util::resolve_path;
 use async_std::path::{Path, PathBuf};
 
+/// 目录请求默认会尝试这个文件（除非传了 `--list-dir`）。
+pub const INDEX_FILE: &str = "index.html";
+
 pub struct Config {
   pub delay: u64,
   pub should_log_access: bool,
@@ -11,6 +14,7 @@ pub struct Config {
   pub base_href: Option<String>,
   pub html5: bool,
   pub index_href: PathBuf,
+  pub list_dir: bool,
   pub gzip: bool,
 }
 
@@ -25,7 +29,8 @@ impl Config {
       should_log_access: !args.no_access,
       base_href: args.base_href.clone(),
       html5: args.html5,
-      index_href: root_dir.join(&args.index),
+      index_href: root_dir.join(INDEX_FILE),
+      list_dir: args.list_dir,
       root_dir,
       root_canonical,
       gzip: args.gzip,

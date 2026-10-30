@@ -49,10 +49,10 @@ fn defaults_are_stable() {
   let args = parse(&["lightstatic", "dir"]);
   assert_eq!(args.host, "0.0.0.0");
   assert_eq!(args.port, 8080);
-  assert_eq!(args.index, "index.html");
   assert_eq!(args.delay, 0);
   assert!(!args.gzip);
   assert!(!args.html5);
+  assert!(!args.list_dir);
   assert_eq!(args.serve_path.as_deref(), Some("dir"));
 }
 
@@ -84,13 +84,19 @@ fn flags_are_parsed() {
     "9000",
     "-d",
     "250",
-    "-i",
-    "app.html",
+    "--list-dir",
   ]);
   assert!(args.html5);
   assert!(args.gzip);
   assert!(args.no_access);
+  assert!(args.list_dir);
   assert_eq!(args.port, 9000);
   assert_eq!(args.delay, 250);
-  assert_eq!(args.index, "app.html");
+}
+
+/// `-i/--index` 已移除：目录一律用 index.html，除非传 `--list-dir`。
+#[test]
+fn index_flag_is_gone() {
+  assert!(Args::try_parse_from(["lightstatic", "dist", "-i", "app.html"]).is_err());
+  assert!(Args::try_parse_from(["lightstatic", "dist", "--index", "app.html"]).is_err());
 }

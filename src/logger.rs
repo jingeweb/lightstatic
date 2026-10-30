@@ -94,7 +94,10 @@ pub fn log_startup_info(args: &args::Args, port: u16) {
     log_listening(&args.host, port, &args.base_href);
   }
   if args.html5 {
-    info!("Html5 route mode rewrite to {}", args.index.cyan());
+    info!(
+      "Html5 route mode rewrite to {}",
+      crate::config::INDEX_FILE.cyan()
+    );
   }
   info!("Press {} to stop it.", "ctrl+c".yellow());
   if args.open {

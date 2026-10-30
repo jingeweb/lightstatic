@@ -31,7 +31,7 @@ Options:
   -g, --gzip                   gzip encode response content (default: false)
   -o, --open                   open browser window after starting the server (default: false)
   -5, --html5                  use html5 mode url route(history api fallback like webpack-dev-server) (default: false)
-  -i, --index <FILE>           index file to redirect under html5 mode (default: "index.html") [default: index.html]
+      --list-dir               list directories even when they contain index.html (default: false)
   -d, --delay <DELAY>          delay in milliseconds for response (default: "0") [default: 0]
   -l, --log-dir <DIRECTORY>    write logs to directory, if specified
   -b, --base-href <BASE_HREF>  server base href, useful when under nginx sub path

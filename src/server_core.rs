@@ -124,6 +124,7 @@ pub fn handle_request<'a>(
       ref base_href,
       html5,
       ref index_href,
+      list_dir,
       gzip,
     } = req.state().deref();
 
@@ -171,7 +172,7 @@ pub fn handle_request<'a>(
     let file_path = root_dir.join(&rel);
 
     // 只有“看起来像静态文件”的 URL（最后一段带扩展名、且不以 / 结尾）才直接 404，
-    // 其余交给 html5 的 index 回退。
+    // 其余交给 html5 的 index 回退（回退到根目录的 index.html）。
     let is_file_like = !url_path.ends_with('/') && Path::new(&rel).extension().is_some();
 
     match file_path.metadata().await {
@@ -185,6 +186,23 @@ pub fn handle_request<'a>(
         }
 
         if stat.is_dir() {
+          // 目录默认尝试 <dir>/index.html；`--list-dir` 时跳过硬编码的 index，直接列目录。
+          if !list_dir {
+            let index_path = file_path.join(crate::config::INDEX_FILE);
+            if let Ok(index_stat) = index_path.metadata().await {
+              if index_stat.is_file() && is_inside_root(root_canonical, &index_path).await {
+                return send_file_304(
+                  &index_stat,
+                  &req,
+                  &index_path,
+                  should_log_access,
+                  &raw_path,
+                  gzip,
+                )
+                .await;
+              }
+            }
+          }
           let prefix = url_prefix(base_href.as_deref(), &rel);
           send(
             send_dir(&file_path, &prefix).await,
@@ -214,8 +232,9 @@ pub fn handle_request<'a>(
             Ok(stat) => {
               send_file_304(&stat, &req, index_path, should_log_access, &raw_path, gzip).await
             }
-            Err(err) => send(
-              Err(http_types::Error::new(StatusCode::InternalServerError, err)),
+            // 根目录没有 index.html 时，html5 回退只能 404
+            Err(_) => send(
+              Ok(Response::new(StatusCode::NotFound)),
               should_log_access,
               &raw_path,
             ),

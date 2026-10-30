@@ -21,12 +21,11 @@ fn double_slash_traversal_is_blocked() {
   // root 里没有的文件仍然是 404，而不是读到系统文件
   assert_eq!(server.get("//etc/passwd").status, 404);
 
-  // `//` 只列出 root，不能列出文件系统根目录
+  // `//` 指向 root 目录 → 默认返回 root/index.html，而不是文件系统根目录
   let res = server.get("//");
   assert_eq!(res.status, 200);
-  let body = res.text();
-  assert!(body.contains("index.html"), "{body}");
-  assert!(!body.contains("/usr"), "{body}");
+  assert_eq!(res.text(), "home");
+  assert!(!res.text().contains("/usr"));
 }
 
 /// 回归：请求路径从不做 percent-decode，带空格/中文的文件名恒 404。
@@ -113,6 +112,18 @@ fn base_href_redirects_and_scopes() {
   // 前缀下面也不能用双斜杠逃逸
   assert_eq!(server.get("/app//etc/passwd").status, 404);
 
+  // 目录默认返回 index.html
+  assert_eq!(server.get("/app/").text(), "idx");
+}
+
+/// `--list-dir` 下目录仍然列出，且链接带 base href 前缀。
+#[test]
+fn base_href_listing_keeps_prefix() {
+  let root = temp_dir("e2e-base-list");
+  write_file(&root, "index.html", b"idx");
+  write_file(&root, "x.txt", b"x");
+
+  let server = TestServer::start(&root, &["-b", "/app/", "--list-dir"]);
   let body = server.get("/app/").text();
   assert!(body.contains("href=\"/app/x.txt\""), "{body}");
 }
@@ -183,4 +194,50 @@ fn empty_serve_path_reports_error() {
   let stderr = String::from_utf8_lossy(&out.stderr);
   assert!(stderr.contains("missing serve path"), "{stderr}");
   assert!(!stderr.contains("panicked"), "{stderr}");
+}
+
+/// 目录默认返回自己的 index.html（不再区分 html5 模式）。
+#[test]
+fn directory_serves_its_index() {
+  let root = temp_dir("e2e-dir-index");
+  write_file(&root, "index.html", b"root-index");
+  write_file(&root, "sub/index.html", b"sub-index");
+  write_file(&root, "plain/a.txt", b"a");
+
+  let server = TestServer::start(&root, &[]);
+  assert_eq!(server.get("/").text(), "root-index");
+  assert_eq!(server.get("/sub/").text(), "sub-index");
+
+  // 没有 index.html 的目录退回列目录
+  let res = server.get("/plain/");
+  assert_eq!(res.status, 200);
+  assert!(res.text().contains("a.txt"), "{}", res.text());
+}
+
+/// `--list-dir`：即使目录里有 index.html 也直接列目录。
+#[test]
+fn list_dir_flag_forces_listing() {
+  let root = temp_dir("e2e-list-dir");
+  write_file(&root, "index.html", b"root-index");
+  write_file(&root, "sub/index.html", b"sub-index");
+
+  let server = TestServer::start(&root, &["--list-dir"]);
+  assert!(server.get("/").text().contains("Index of /"));
+  assert!(server.get("/sub/").text().contains("Index of /sub/"));
+}
+
+/// `-i/--index` 已移除。
+#[test]
+fn index_flag_is_gone() {
+  for flag in ["-i", "--index"] {
+    let out = Command::new(env!("CARGO_BIN_EXE_lightstatic"))
+      .arg(".")
+      .arg(flag)
+      .arg("app.html")
+      .output()
+      .unwrap();
+    assert!(!out.status.success(), "{flag} should be rejected");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("unexpected argument"), "{flag}: {stderr}");
+  }
 }

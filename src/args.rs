@@ -30,15 +30,9 @@ pub struct Args {
   /// use html5 mode url route(history api fallback like webpack-dev-server) (default: false)
   #[clap(short = '5', long, value_parser, default_value_t = false)]
   pub html5: bool,
-  /// index file to redirect under html5 mode (default: "index.html")
-  #[clap(
-    short,
-    long,
-    value_parser,
-    value_name = "FILE",
-    default_value = "index.html"
-  )]
-  pub index: String,
+  /// list directories even when they contain index.html (default: false)
+  #[clap(long, value_parser, default_value_t = false)]
+  pub list_dir: bool,
   /// delay in milliseconds for response (default: "0")
   #[clap(short, long, value_parser, default_value_t = 0)]
   pub delay: u64,
