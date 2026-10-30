@@ -1,6 +1,6 @@
 {
   "name": "lightstatic",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Lightweight static file server with gzip and html5 history fallback, written in Rust. For local development only — do not use in production.",
   "keywords": [
     "static",
@@ -39,11 +39,11 @@
     "prepare": "husky"
   },
   "optionalDependencies": {
-    "lightstatic-darwin-arm64": "2.0.0",
-    "lightstatic-darwin-x64": "2.0.0",
-    "lightstatic-linux-arm64": "2.0.0",
-    "lightstatic-linux-x64": "2.0.0",
-    "lightstatic-win-x64": "2.0.0"
+    "lightstatic-darwin-arm64": "2.1.0",
+    "lightstatic-darwin-x64": "2.1.0",
+    "lightstatic-linux-arm64": "2.1.0",
+    "lightstatic-linux-x64": "2.1.0",
+    "lightstatic-win-x64": "2.1.0"
   },
   "devDependencies": {
     "husky": "^9.1.7"

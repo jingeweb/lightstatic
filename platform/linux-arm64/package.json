@@ -1,6 +1,6 @@
 {
   "name": "lightstatic-linux-arm64",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "lightstatic prebuilt binary for Linux arm64",
   "homepage": "https://github.com/jingeweb/lightstatic#readme",
   "bugs": {
