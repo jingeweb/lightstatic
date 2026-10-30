@@ -1,4 +1,4 @@
-use async_std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use lightstatic::util::{is_empty_root_url, resolve_path};
 
@@ -7,12 +7,11 @@ fn path(value: &str) -> PathBuf {
 }
 
 fn home() -> PathBuf {
-  let dir = std::env::var("HOME")
+  std::env::var("HOME")
     .ok()
     .map(std::path::PathBuf::from)
     .or_else(dirs::home_dir)
-    .expect("home directory");
-  PathBuf::from(dir)
+    .expect("home directory")
 }
 
 #[test]
@@ -93,24 +92,23 @@ fn empty_root_url_detection() {
   assert!(!is_empty_root_url("x"));
 }
 
-#[test]
-fn detects_paths_inside_root() {
-  async_std::task::block_on(async {
-    let root = temp_root();
-    let inside = root.join("a.txt");
-    std::fs::write(&inside, b"x").unwrap();
-    assert!(lightstatic::util::is_inside_root(&root, Path::new(&inside)).await);
+#[tokio::test]
+async fn detects_paths_inside_root() {
+  // is_inside_root 期望传入已规范化的根目录（macOS 上 /var -> /private/var）
+  let root = std::fs::canonicalize(temp_root()).unwrap();
+  let inside = root.join("a.txt");
+  std::fs::write(&inside, b"x").unwrap();
+  assert!(lightstatic::util::is_inside_root(&root, Path::new(&inside)).await);
 
-    let outside = std::env::temp_dir().join("lightstatic-outside.txt");
-    std::fs::write(&outside, b"x").unwrap();
-    assert!(!lightstatic::util::is_inside_root(&root, Path::new(&outside)).await);
-    let _ = std::fs::remove_file(&outside);
-  });
+  let outside = std::env::temp_dir().join("lightstatic-outside.txt");
+  std::fs::write(&outside, b"x").unwrap();
+  assert!(!lightstatic::util::is_inside_root(&root, Path::new(&outside)).await);
+  let _ = std::fs::remove_file(&outside);
 }
 
 fn temp_root() -> PathBuf {
   let dir = std::env::temp_dir().join(format!("lightstatic-util-{}", std::process::id()));
   let _ = std::fs::remove_dir_all(&dir);
   std::fs::create_dir_all(&dir).unwrap();
-  PathBuf::from(dir)
+  dir
 }

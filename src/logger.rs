@@ -3,11 +3,11 @@ use crate::{
   util::{self, resolve_path},
 };
 
-use async_std::path::Path;
 use colored::Colorize;
 use fern::{DateBased, Dispatch};
 use log::LevelFilter;
 use std::fmt::Display;
+use std::path::Path;
 
 pub fn initialize_log(args: &args::Args, cwd: &Path) {
   let mut info_dest = Dispatch::new()

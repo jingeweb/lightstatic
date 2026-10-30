@@ -1,44 +1,61 @@
-use async_std::path::Path;
-use http_types::{mime, Method, Request};
+use std::path::Path;
+
+use http_body_util::BodyExt;
+use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 
 use lightstatic::helper::{
-  accepts_gzip, encode_path, escape_html, etag_for, get_mime, get_mime_from_ext, send_dir,
-  should_send_file,
+  accepts_gzip, encode_path, escape_html, etag_for, mime_for, mime_from_ext, send_dir,
+  should_send_file, ResBody,
 };
 
 mod common;
 
-fn header_req(pairs: &[(&str, &str)]) -> Request {
-  let mut request = Request::new(Method::Get, "http://localhost/");
+fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
+  let mut map = HeaderMap::new();
   for (name, value) in pairs {
-    request.insert_header(*name, *value);
+    map.insert(
+      name.parse::<HeaderName>().unwrap(),
+      HeaderValue::from_str(value).unwrap(),
+    );
   }
-  request
+  map
 }
 
 fn gzip_ok(value: &str) -> bool {
-  let request = header_req(&[("accept-encoding", value)]);
-  accepts_gzip(request.header("accept-encoding"))
+  accepts_gzip(&headers(&[("accept-encoding", value)]))
 }
 
 fn conditional(value: &str, etag: &str) -> bool {
-  let request = header_req(&[("if-none-match", value)]);
-  should_send_file(request.header("if-none-match"), etag)
+  should_send_file(&headers(&[("if-none-match", value)]), etag)
+}
+
+async fn body_of(res: hyper::Response<ResBody>) -> String {
+  let bytes = res.into_body().collect().await.unwrap().to_bytes();
+  String::from_utf8(bytes.to_vec()).unwrap()
 }
 
 #[test]
 fn mime_mapping() {
-  assert_eq!(get_mime_from_ext(Some("html")), mime::HTML);
-  assert_eq!(get_mime_from_ext(Some("css")), mime::CSS);
-  assert_eq!(get_mime_from_ext(Some("js")), mime::JAVASCRIPT);
-  assert_eq!(get_mime_from_ext(Some("ts")), mime::JAVASCRIPT);
-  assert_eq!(get_mime_from_ext(Some("json")), mime::JSON);
-  assert_eq!(get_mime_from_ext(Some("svg")), mime::SVG);
-  assert_eq!(get_mime_from_ext(Some("png")), mime::PNG);
-  assert_eq!(get_mime_from_ext(Some("bin")), mime::BYTE_STREAM);
-  assert_eq!(get_mime_from_ext(None), mime::BYTE_STREAM);
-  assert_eq!(get_mime(Path::new("a/b/c.txt")), mime::PLAIN);
-  assert_eq!(get_mime(Path::new("a/b/noext")), mime::BYTE_STREAM);
+  assert_eq!(mime_from_ext(Some("html")), "text/html; charset=utf-8");
+  assert_eq!(mime_from_ext(Some("css")), "text/css; charset=utf-8");
+  assert_eq!(
+    mime_from_ext(Some("js")),
+    "application/javascript; charset=utf-8"
+  );
+  assert_eq!(
+    mime_from_ext(Some("ts")),
+    "application/javascript; charset=utf-8"
+  );
+  assert_eq!(mime_from_ext(Some("json")), "application/json");
+  assert_eq!(mime_from_ext(Some("svg")), "image/svg+xml");
+  assert_eq!(mime_from_ext(Some("png")), "image/png");
+  assert_eq!(mime_from_ext(Some("bin")), "application/octet-stream");
+  assert_eq!(mime_from_ext(None), "application/octet-stream");
+  assert_eq!(
+    mime_for(Path::new("a/b/c.txt")),
+    "text/plain; charset=utf-8"
+  );
+  assert_eq!(mime_for(Path::new("a/b/noext")), "application/octet-stream");
 }
 
 #[test]
@@ -67,7 +84,7 @@ fn etag_is_quoted() {
 
 #[test]
 fn gzip_negotiation() {
-  assert!(!accepts_gzip(None));
+  assert!(!accepts_gzip(&HeaderMap::new()));
   assert!(gzip_ok("gzip"));
   assert!(gzip_ok("br, gzip;q=0.8"));
   assert!(gzip_ok("*"));
@@ -79,7 +96,7 @@ fn gzip_negotiation() {
 
 #[test]
 fn conditional_request_matching() {
-  assert!(should_send_file(None, "\"123\""));
+  assert!(should_send_file(&HeaderMap::new(), "\"123\""));
   assert!(!conditional("\"123\"", "\"123\""));
   assert!(!conditional("W/\"123\"", "\"123\""));
   assert!(conditional("\"456\"", "\"123\""));
@@ -88,7 +105,7 @@ fn conditional_request_matching() {
 
 /// Windows 不允许文件名里出现 `<` / `"`，这条用例只在 unix 上跑。
 #[cfg(unix)]
-#[async_std::test]
+#[tokio::test]
 async fn dir_listing_escapes_names_and_encodes_links() {
   let dir = common::temp_dir("helper-dir");
   common::write_file(&dir, "<img src=x onerror=alert(1)>.txt", b"x");
@@ -96,9 +113,8 @@ async fn dir_listing_escapes_names_and_encodes_links() {
   common::write_file(&dir, "quote\"name.txt", b"x");
   std::fs::create_dir(dir.join("sub")).unwrap();
 
-  let mut res = send_dir(Path::new(&dir), "/").await.unwrap();
-  let body = res.take_body().into_bytes().await.unwrap();
-  let body = String::from_utf8(body).unwrap();
+  let res = send_dir(Path::new(&dir), "/").await.unwrap();
+  let body = body_of(res).await;
 
   // 文件名里的标签必须被转义
   assert!(
@@ -120,13 +136,13 @@ async fn dir_listing_escapes_names_and_encodes_links() {
   assert!(first < second, "{body}");
 }
 
-#[async_std::test]
+#[tokio::test]
 async fn dir_listing_prefix_is_applied() {
   let dir = common::temp_dir("helper-prefix");
   common::write_file(&dir, "x.txt", b"x");
 
-  let mut res = send_dir(Path::new(&dir), "/app/sub/").await.unwrap();
-  let body = String::from_utf8(res.take_body().into_bytes().await.unwrap()).unwrap();
+  let res = send_dir(Path::new(&dir), "/app/sub/").await.unwrap();
+  let body = body_of(res).await;
   assert!(body.contains("href=\"/app/sub/x.txt\""), "{body}");
   assert!(body.contains("Index of /app/sub/"), "{body}");
 }

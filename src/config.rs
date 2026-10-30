@@ -1,6 +1,7 @@
+use std::path::{Path, PathBuf};
+
 use crate::args;
 use crate::util::resolve_path;
-use async_std::path::{Path, PathBuf};
 
 /// 目录请求默认会尝试这个文件（除非传了 `--list-dir`）。
 pub const INDEX_FILE: &str = "index.html";
@@ -21,9 +22,7 @@ pub struct Config {
 impl Config {
   pub fn new(args: &args::Args, cwd: &Path) -> Self {
     let root_dir = resolve_path(cwd, Path::new(args.serve_path.as_ref().unwrap()));
-    let root_canonical = std::fs::canonicalize(root_dir.as_os_str())
-      .map(PathBuf::from)
-      .unwrap_or_else(|_| root_dir.clone());
+    let root_canonical = std::fs::canonicalize(&root_dir).unwrap_or_else(|_| root_dir.clone());
     Config {
       delay: args.delay,
       should_log_access: !args.no_access,

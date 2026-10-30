@@ -29,7 +29,7 @@ fn writes_logs_into_directory() {
 
   let mut args = Args::parse_from(["lightstatic", "web", "-l", dir.to_str().unwrap()]);
   normalize(&mut args);
-  let cwd = async_std::path::PathBuf::from("/tmp");
+  let cwd = std::path::PathBuf::from("/tmp");
 
   initialize_log(&args, &cwd);
   log_startup_info(&args, 8123);
