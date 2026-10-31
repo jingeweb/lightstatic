@@ -1,6 +1,6 @@
 [package]
 name = "lightstatic"
-version = "2.1.1"
+version = "2.1.2"
 edition = "2021"
 description = "lightweight static file server for local development only"
 license = "MIT"
