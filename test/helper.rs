@@ -95,6 +95,17 @@ fn gzip_negotiation() {
 }
 
 #[test]
+fn regression_gzip_specific_preference_overrides_wildcard() {
+  assert!(!gzip_ok("gzip;q=0, *;q=1"));
+  assert!(!gzip_ok("*;q=1, gzip;q=0"));
+  assert!(gzip_ok("gzip;q=0.5, *;q=0"));
+  assert!(gzip_ok("*;q=0, GZIP;q=1"));
+  let mut map = headers(&[("accept-encoding", "*;q=1")]);
+  map.append("accept-encoding", HeaderValue::from_static("gzip;q=0"));
+  assert!(!accepts_gzip(&map));
+}
+
+#[test]
 fn conditional_request_matching() {
   assert!(should_send_file(&HeaderMap::new(), "\"123\""));
   assert!(!conditional("\"123\"", "\"123\""));

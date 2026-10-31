@@ -4,6 +4,86 @@ mod common;
 
 use common::{gunzip, temp_dir, write_file, TestServer};
 
+#[cfg(unix)]
+#[test]
+fn regression_html5_fallback_blocks_external_symlink() {
+  let root = temp_dir("fallback-symlink");
+  let outside = temp_dir("fallback-outside").join("secret.txt");
+  std::fs::write(&outside, b"outside-secret").unwrap();
+  std::os::unix::fs::symlink(&outside, root.join("index.html")).unwrap();
+  let server = TestServer::start(&root, &["-5"]);
+  assert_eq!(server.get("/index.html").status, 403);
+  let res = server.get("/missing-route");
+  assert_eq!(res.status, 403);
+  assert!(!res.text().contains("outside-secret"));
+}
+
+#[test]
+fn regression_html5_fallback_requires_regular_file() {
+  let root = temp_dir("fallback-directory");
+  std::fs::create_dir(root.join("index.html")).unwrap();
+  let server = TestServer::start(&root, &["-5"]);
+  assert_eq!(server.get("/missing-route").status, 404);
+}
+
+#[test]
+fn regression_etag_changes_with_subsecond_modifications() {
+  use std::time::{Duration, UNIX_EPOCH};
+
+  let root = temp_dir("etag-subsecond");
+  let path = write_file(&root, "asset.txt", b"old");
+  let file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+  let first = UNIX_EPOCH + Duration::new(1_700_000_000, 100_000_000);
+  let second = UNIX_EPOCH + Duration::new(1_700_000_000, 900_000_000);
+  file.set_modified(first).unwrap();
+  let server = TestServer::start(&root, &[]);
+  let before = server.get("/asset.txt");
+  let etag = before.header("etag").unwrap();
+  std::fs::write(&path, b"new").unwrap();
+  file.set_modified(second).unwrap();
+  let after = server.request("/asset.txt", &[("if-none-match", etag)]);
+  assert_eq!(after.status, 200);
+  assert_eq!(after.text(), "new");
+  assert_ne!(after.header("etag"), Some(etag));
+  let cached = server.request(
+    "/asset.txt",
+    &[("if-none-match", after.header("etag").unwrap())],
+  );
+  assert_eq!(cached.status, 304);
+}
+
+#[test]
+fn regression_directory_redirect_keeps_encoding_query_and_base() {
+  let root = temp_dir("directory-redirect");
+  write_file(&root, "index.html", b"root");
+  write_file(&root, "sub dir/index.html", b"sub");
+  for extra in [vec![], vec!["--list-dir"], vec!["-b", "/app/"]] {
+    let server = TestServer::start(&root, &extra);
+    let base = if extra.contains(&"-b") { "/app" } else { "" };
+    let res = server.get(&format!("{base}/sub%20dir?v=1"));
+    assert_eq!(res.status, 308);
+    let target = format!("{base}/sub%20dir/?v=1");
+    assert_eq!(res.header("location"), Some(target.as_str()));
+    assert_eq!(server.get(&target).status, 200);
+    if !base.is_empty() {
+      let res = server.get("/app?v=1");
+      assert_eq!(res.status, 308);
+      assert_eq!(res.header("location"), Some("/app/?v=1"));
+    }
+  }
+}
+
+#[test]
+fn regression_gzip_explicit_refusal_overrides_wildcard() {
+  let root = temp_dir("gzip-refusal");
+  write_file(&root, "asset.txt", b"plain");
+  let server = TestServer::start(&root, &["-g"]);
+  let res = server.request("/asset.txt", &[("accept-encoding", "gzip;q=0, *;q=1")]);
+  assert_eq!(res.status, 200);
+  assert_eq!(res.header("content-encoding"), None);
+  assert_eq!(res.text(), "plain");
+}
+
 /// 回归：`GET //etc/hosts` 曾经读到根目录之外的文件。
 #[test]
 fn double_slash_traversal_is_blocked() {

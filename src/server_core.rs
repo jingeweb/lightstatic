@@ -121,6 +121,21 @@ async fn route(req: &Request<Incoming>, config: &Config, raw_path: &str) -> Resp
       }
 
       if stat.is_dir() {
+        // 浏览器必须以目录 URL 解析 index.html 中的相对资源路径。
+        if !raw_path.ends_with('/') {
+          // 强制单个前导斜杠，避免 //host 被浏览器解释成跨站跳转。
+          let mut location = format!("/{}/", raw_path.trim_start_matches('/'));
+          if let Some(query) = req.uri().query() {
+            location.push('?');
+            location.push_str(query);
+          }
+          let Ok(location) = HeaderValue::from_str(&location) else {
+            return response(StatusCode::BAD_REQUEST);
+          };
+          let mut res = response(StatusCode::PERMANENT_REDIRECT);
+          res.headers_mut().insert(LOCATION, location);
+          return res;
+        }
         // 目录默认尝试 <dir>/index.html；`--list-dir` 时跳过硬编码的 index，直接列目录。
         if !config.list_dir {
           let index_path = file_path.join(INDEX_FILE);
@@ -153,7 +168,15 @@ async fn route(req: &Request<Incoming>, config: &Config, raw_path: &str) -> Resp
       // html5 回退：返回根目录的 index.html
       let index_path: &PathBuf = &config.index_href;
       match tokio::fs::metadata(index_path).await {
-        Ok(stat) => send_file_304(&stat, req, index_path, config.gzip).await,
+        Ok(stat) => {
+          if !is_inside_root(&config.root_canonical, index_path).await {
+            return response(StatusCode::FORBIDDEN);
+          }
+          if !stat.is_file() {
+            return response(StatusCode::NOT_FOUND);
+          }
+          send_file_304(&stat, req, index_path, config.gzip).await
+        }
         Err(_) => response(StatusCode::NOT_FOUND),
       }
     }
@@ -170,10 +193,10 @@ async fn send_file_304(
     .modified()
     .ok()
     .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-    .map(|elapsed| elapsed.as_secs())
+    .map(|elapsed| elapsed.as_nanos())
     .unwrap_or(0)
     .to_string();
-  let etag = etag_for(&mtime);
+  let etag = etag_for(&format!("{mtime}-{}", stat.len()));
 
   if !should_send_file(req.headers(), &etag) {
     let mut res = response(StatusCode::NOT_MODIFIED);

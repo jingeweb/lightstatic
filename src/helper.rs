@@ -169,27 +169,35 @@ pub fn etag_for(mtime: &str) -> String {
 
 /// `Accept-Encoding` 是否接受 gzip（含 `*`，并处理 `q=0`）。
 pub fn accepts_gzip(headers: &HeaderMap) -> bool {
-  let Some(value) = headers.get(ACCEPT_ENCODING) else {
-    return false;
-  };
-  let Ok(value) = value.to_str() else {
-    return false;
-  };
-  value.split(',').any(|part| {
-    let mut params = part.split(';');
-    let token = params.next().unwrap_or("").trim();
-    if !(token.eq_ignore_ascii_case("gzip") || token == "*") {
-      return false;
-    }
-    // q=0 / q=0.0 表示客户端明确拒绝
-    !params.any(|param| {
-      let param = param.trim().replace(' ', "").to_ascii_lowercase();
-      match param.strip_prefix("q=") {
-        Some(q) => q.parse::<f32>().map(|q| q == 0.0).unwrap_or(false),
-        None => false,
+  let mut gzip = None;
+  let mut wildcard = None;
+  for value in headers.get_all(ACCEPT_ENCODING) {
+    let Ok(value) = value.to_str() else {
+      continue;
+    };
+    for part in value.split(',') {
+      let mut params = part.split(';');
+      let token = params.next().unwrap_or("").trim();
+      let preference = if token.eq_ignore_ascii_case("gzip") {
+        &mut gzip
+      } else if token == "*" {
+        &mut wildcard
+      } else {
+        continue;
+      };
+      let mut quality = 1.0_f32;
+      for param in params {
+        if let Some((name, value)) = param.split_once('=') {
+          if name.trim().eq_ignore_ascii_case("q") {
+            quality = value.trim().parse().unwrap_or(0.0);
+          }
+        }
       }
-    })
-  })
+      *preference = Some(quality > 0.0 && quality <= 1.0);
+    }
+  }
+  // 明确列出的 gzip 优先级高于通配符，包括显式的 q=0。
+  gzip.or(wildcard).unwrap_or(false)
 }
 
 pub async fn send_file(

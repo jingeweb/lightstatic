@@ -13,20 +13,14 @@ importers:
         version: 9.1.7
     optionalDependencies:
       lightstatic-darwin-arm64:
-        specifier: 2.0.0
-        version: 2.0.0
+        specifier: 2.1.1
+        version: 2.1.1
       lightstatic-darwin-x64:
-        specifier: 2.0.0
-        version: 2.0.0
-      lightstatic-linux-arm64:
-        specifier: 2.0.0
-        version: 2.0.0
+        specifier: 2.1.1
+        version: 2.1.1
       lightstatic-linux-x64:
-        specifier: 2.0.0
-        version: 2.0.0
-      lightstatic-win-x64:
-        specifier: 2.0.0
-        version: 2.0.0
+        specifier: 2.1.1
+        version: 2.1.1
 
 packages:
 
@@ -35,46 +29,30 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  lightstatic-darwin-arm64@2.0.0:
-    resolution: {integrity: sha512-XJ1cP7rNEoEfLWXbZTM2lW6KYKDMIOLDliIX37s0xahNCmSfIVT5QRu1lqAgVrzIf2dqBWDp6UZJK7LLG5q8xw==}
+  lightstatic-darwin-arm64@2.1.1:
+    resolution: {integrity: sha512-CQ1MDILV1TNDvnzI68yRjRjcjpt9JEY5OBBEKDY/EnhLD/uVcGYgCoca6KX5mpN0yA++GYLfwKoXiaNyWjWXrg==}
     cpu: [arm64]
     os: [darwin]
 
-  lightstatic-darwin-x64@2.0.0:
-    resolution: {integrity: sha512-VCiEEY21a1pnRdFOH/WmqFeeYM6SHJX3iCnx2omkT4T5+eqbm1cR7Deiqv2n7n4+go6vEBC8k7zNwKbkSEek8w==}
+  lightstatic-darwin-x64@2.1.1:
+    resolution: {integrity: sha512-NNJdJWAB4sH0joUMoggPAridv+OJM7fV5WvKJax2U5T2NX7kt4DnDHwdT9HbQ7l1lHfQNacWYSJkTIFgE4F3lQ==}
     cpu: [x64]
     os: [darwin]
 
-  lightstatic-linux-arm64@2.0.0:
-    resolution: {integrity: sha512-HUPTUMJXBjX7CPsJ5xMzFlp1Hgsn5jqw6i1quHfH/7YeAKrtiAh3Ys1a8L5RnPVSSTmti5kgmAU9ZSkG4vdwWQ==}
-    cpu: [arm64]
-    os: [linux]
-
-  lightstatic-linux-x64@2.0.0:
-    resolution: {integrity: sha512-5X1IlynhQkwZUfvTLArxBATjml3kFQWbI9U6+B3jtMR/skw13+rtHhbaX1r2RVghOD62VNkGudDjJaZURYWSJg==}
+  lightstatic-linux-x64@2.1.1:
+    resolution: {integrity: sha512-I4BdlAdY5FMeDyXrttcxRc1aCpW0NdRczisSKotwisp7NHTie5aqpNi6Nw7ElTiM9wWzhhuxy7cyu9j55vHbOA==}
     cpu: [x64]
     os: [linux]
-
-  lightstatic-win-x64@2.0.0:
-    resolution: {integrity: sha512-+YkLsu3/7IunOX0Bn5Hg3U9Wp8PwgQis2m2e+OCff9npx99LDP688g5VWixllaC0L8WtWTqbFaxKlfOlKKJWyw==}
-    cpu: [x64]
-    os: [win32]
 
 snapshots:
 
   husky@9.1.7: {}
 
-  lightstatic-darwin-arm64@2.0.0:
+  lightstatic-darwin-arm64@2.1.1:
     optional: true
 
-  lightstatic-darwin-x64@2.0.0:
+  lightstatic-darwin-x64@2.1.1:
     optional: true
 
-  lightstatic-linux-arm64@2.0.0:
-    optional: true
-
-  lightstatic-linux-x64@2.0.0:
-    optional: true
-
-  lightstatic-win-x64@2.0.0:
+  lightstatic-linux-x64@2.1.1:
     optional: true
