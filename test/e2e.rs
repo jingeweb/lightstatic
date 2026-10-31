@@ -4,6 +4,166 @@ mod common;
 
 use common::{gunzip, temp_dir, write_file, TestServer};
 
+#[test]
+fn range_download_supports_bounded_open_and_suffix_ranges() {
+  let root = temp_dir("ranges");
+  write_file(&root, "file.bin", b"0123456789");
+  let server = TestServer::start(&root, &[]);
+  let full = server.get("/file.bin");
+  assert_eq!(full.header("accept-ranges"), Some("bytes"));
+  for (range, content_range, body) in [
+    ("bytes=2-5", "bytes 2-5/10", "2345"),
+    ("bytes=6-", "bytes 6-9/10", "6789"),
+    ("bytes=-3", "bytes 7-9/10", "789"),
+    ("bytes=8-999", "bytes 8-9/10", "89"),
+    ("bytes=-999", "bytes 0-9/10", "0123456789"),
+    ("bytes=0-0", "bytes 0-0/10", "0"),
+  ] {
+    let res = server.request("/file.bin", &[("range", range)]);
+    assert_eq!(res.status, 206, "{range}");
+    assert_eq!(res.header("content-range"), Some(content_range));
+    assert_eq!(
+      res.header("content-length"),
+      Some(body.len().to_string().as_str())
+    );
+    assert_eq!(res.header("etag"), full.header("etag"));
+    assert_eq!(res.text(), body);
+  }
+  // 拼接两次下载的结果，验证真实的续传场景。
+  let mut downloaded = server.request("/file.bin", &[("range", "bytes=0-3")]).body;
+  downloaded.extend(server.request("/file.bin", &[("range", "bytes=4-")]).body);
+  assert_eq!(downloaded, full.body);
+}
+
+#[test]
+fn range_download_unsatisfiable_and_empty_files() {
+  let root = temp_dir("range-empty");
+  write_file(&root, "file.bin", b"0123456789");
+  write_file(&root, "empty.bin", b"");
+  let server = TestServer::start(&root, &[]);
+  for (path, range, expected) in [
+    ("/file.bin", "bytes=10-", "bytes */10"),
+    ("/file.bin", "bytes=-0", "bytes */10"),
+    ("/empty.bin", "bytes=0-", "bytes */0"),
+    ("/empty.bin", "bytes=-1", "bytes */0"),
+  ] {
+    let res = server.request(path, &[("range", range)]);
+    assert_eq!(res.status, 416, "{path}: {range}");
+    assert_eq!(res.header("content-range"), Some(expected));
+    assert!(res.body.is_empty());
+  }
+  assert_eq!(server.get("/empty.bin").status, 200);
+}
+
+#[test]
+fn range_download_ignores_malformed_and_multiple_ranges() {
+  let root = temp_dir("range-invalid");
+  write_file(&root, "file.bin", b"0123456789");
+  let server = TestServer::start(&root, &[]);
+  for range in [
+    "items=0-1",
+    "bytes=abc",
+    "bytes=5-2",
+    "bytes=0-1,4-5",
+    "bytes=+1-2",
+    "bytes=184467440737095516160-",
+  ] {
+    let res = server.request("/file.bin", &[("range", range)]);
+    assert_eq!(res.status, 200, "{range}");
+    assert_eq!(res.header("content-range"), None);
+    assert_eq!(res.text(), "0123456789");
+  }
+  let res = server.request(
+    "/file.bin",
+    &[("range", "bytes=0-1"), ("range", "bytes=4-5")],
+  );
+  assert_eq!(res.status, 200);
+  assert_eq!(res.text(), "0123456789");
+}
+
+#[test]
+fn range_download_if_range_and_cache_preconditions() {
+  let root = temp_dir("range-validator");
+  write_file(&root, "file.bin", b"0123456789");
+  let server = TestServer::start(&root, &[]);
+  let full = server.get("/file.bin");
+  let etag = full.header("etag").unwrap();
+  let res = server.request("/file.bin", &[("range", "bytes=5-"), ("if-range", etag)]);
+  assert_eq!(res.status, 206);
+  assert_eq!(res.text(), "56789");
+  for validator in [
+    "\"stale\"".to_string(),
+    format!("W/{etag}"),
+    "Wed, 21 Oct 2015 07:28:00 GMT".to_string(),
+  ] {
+    let res = server.request(
+      "/file.bin",
+      &[("range", "bytes=999-"), ("if-range", &validator)],
+    );
+    assert_eq!(res.status, 200);
+    assert_eq!(res.body, full.body);
+  }
+  let res = server.request(
+    "/file.bin",
+    &[("range", "bytes=999-"), ("if-none-match", etag)],
+  );
+  assert_eq!(res.status, 304);
+}
+
+#[test]
+fn range_download_gzip_ignores_ranges_but_identity_can_resume() {
+  let root = temp_dir("range-gzip");
+  write_file(&root, "file.bin", b"0123456789");
+  let server = TestServer::start(&root, &["-g"]);
+  let identity = server.get("/file.bin");
+  for range in ["bytes=2-5", "bytes=999-"] {
+    let res = server.request(
+      "/file.bin",
+      &[("range", range), ("accept-encoding", "gzip")],
+    );
+    assert_eq!(res.status, 200);
+    assert_eq!(res.header("content-encoding"), Some("gzip"));
+    assert_eq!(res.header("accept-ranges"), Some("none"));
+    assert_eq!(res.header("content-range"), None);
+    assert_ne!(res.header("etag"), identity.header("etag"));
+    assert_eq!(gunzip(&res.body), identity.body);
+    let resumed = server.request(
+      "/file.bin",
+      &[
+        ("range", "bytes=5-"),
+        ("if-range", res.header("etag").unwrap()),
+      ],
+    );
+    assert_eq!(resumed.status, 200);
+    assert_eq!(resumed.body, identity.body);
+  }
+  let res = server.request(
+    "/file.bin",
+    &[("range", "bytes=5-"), ("accept-encoding", "identity")],
+  );
+  assert_eq!(res.status, 206);
+  assert_eq!(res.header("content-encoding"), None);
+  assert_eq!(res.text(), "56789");
+}
+
+#[test]
+fn range_download_head_ignores_range_and_index_routes_support_it() {
+  let root = temp_dir("range-routing");
+  write_file(&root, "index.html", b"0123456789");
+  let server = TestServer::start(&root, &["-5", "-b", "/app/"]);
+  for path in ["/app/index.html", "/app/", "/app/spa-route"] {
+    let res = server.request(path, &[("range", "bytes=2-5")]);
+    assert_eq!(res.status, 206);
+    assert_eq!(res.text(), "2345");
+    let head =
+      common::http_request_with_method(server.port, "HEAD", path, &[("range", "bytes=999-")]);
+    assert_eq!(head.status, 200);
+    assert_eq!(head.header("content-range"), None);
+    assert_eq!(head.header("content-length"), Some("10"));
+    assert!(head.body.is_empty());
+  }
+}
+
 #[cfg(unix)]
 #[test]
 fn regression_html5_fallback_blocks_external_symlink() {

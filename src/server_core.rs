@@ -2,13 +2,16 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use hyper::body::Incoming;
-use hyper::header::{HeaderValue, ETAG, LOCATION};
+use hyper::header::{
+  HeaderValue, ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_RANGE, ETAG, LOCATION, VARY,
+};
 use hyper::{Method, Request, Response, StatusCode};
 use percent_encoding::percent_decode_str;
 
 use crate::config::{AppConfig, Config, INDEX_FILE};
 use crate::helper::{
-  accepts_gzip, etag_for, response, send_dir, send_file, should_send_file, ResBody,
+  accepts_gzip, etag_for, response, select_range, send_dir, send_file_with_range, should_send_file,
+  RangeSelection, ResBody,
 };
 use crate::logger::log_access;
 use crate::util::{is_empty_root_url, is_inside_root};
@@ -196,7 +199,10 @@ async fn send_file_304(
     .map(|elapsed| elapsed.as_nanos())
     .unwrap_or(0)
     .to_string();
-  let etag = etag_for(&format!("{mtime}-{}", stat.len()));
+  let gzip = gzip && accepts_gzip(req.headers());
+  // 编码后的表示使用独立验证器，防止 If-Range 混用压缩与原始字节偏移。
+  let encoding = if gzip { "-gzip" } else { "" };
+  let etag = etag_for(&format!("{mtime}-{}{encoding}", stat.len()));
 
   if !should_send_file(req.headers(), &etag) {
     let mut res = response(StatusCode::NOT_MODIFIED);
@@ -204,11 +210,35 @@ async fn send_file_304(
       ETAG,
       HeaderValue::from_str(&etag).unwrap_or_else(|_| HeaderValue::from_static("\"\"")),
     );
+    res
+      .headers_mut()
+      .insert(VARY, HeaderValue::from_static("accept-encoding"));
     return res;
   }
 
-  let gzip = gzip && accepts_gzip(req.headers());
-  match send_file(file_path, stat.len(), &etag, gzip).await {
+  // Range 只适用于 GET；实时 gzip 没有可直接定位的压缩字节偏移。
+  let range = if !gzip && req.method() == Method::GET {
+    match select_range(req.headers(), stat.len(), &etag) {
+      RangeSelection::Full => None,
+      RangeSelection::Partial(start, end) => Some((start, end)),
+      RangeSelection::Unsatisfiable => {
+        let mut res = response(StatusCode::RANGE_NOT_SATISFIABLE);
+        let headers = res.headers_mut();
+        headers.insert(
+          CONTENT_RANGE,
+          HeaderValue::from_str(&format!("bytes */{}", stat.len())).unwrap(),
+        );
+        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("0"));
+        headers.insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+        headers.insert(ETAG, HeaderValue::from_str(&etag).unwrap());
+        headers.insert(VARY, HeaderValue::from_static("accept-encoding"));
+        return res;
+      }
+    }
+  } else {
+    None
+  };
+  match send_file_with_range(file_path, stat.len(), &etag, gzip, range).await {
     Ok(res) => res,
     Err(err) => {
       crate::error!("failed to open {}: {}", file_path.display(), err);

@@ -182,9 +182,18 @@ impl HttpResponse {
 ///
 /// 并行跑测试时端口分配有极小概率撞车，这里对连接类错误做几次重试。
 pub fn http_request(port: u16, path: &str, headers: &[(&str, &str)]) -> HttpResponse {
+  http_request_with_method(port, "GET", path, headers)
+}
+
+pub fn http_request_with_method(
+  port: u16,
+  method: &str,
+  path: &str,
+  headers: &[(&str, &str)],
+) -> HttpResponse {
   let mut last_error = None;
   for attempt in 0..5 {
-    match try_request(port, path, headers) {
+    match try_request(port, method, path, headers) {
       Ok(response) => return response,
       Err(err) => {
         last_error = Some(err);
@@ -195,13 +204,18 @@ pub fn http_request(port: u16, path: &str, headers: &[(&str, &str)]) -> HttpResp
   panic!("request {path} failed: {last_error:?}");
 }
 
-fn try_request(port: u16, path: &str, headers: &[(&str, &str)]) -> std::io::Result<HttpResponse> {
+fn try_request(
+  port: u16,
+  method: &str,
+  path: &str,
+  headers: &[(&str, &str)],
+) -> std::io::Result<HttpResponse> {
   let mut stream = TcpStream::connect(("127.0.0.1", port))?;
   stream.set_read_timeout(Some(Duration::from_secs(10)))?;
   stream.set_write_timeout(Some(Duration::from_secs(10)))?;
 
   let mut request =
-    format!("GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n");
+    format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n");
   for (name, value) in headers {
     request.push_str(&format!("{name}: {value}\r\n"));
   }

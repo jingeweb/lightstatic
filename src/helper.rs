@@ -5,14 +5,14 @@ use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full, StreamBody};
 use hyper::body::Frame;
 use hyper::header::{
-  HeaderMap, HeaderValue, ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE, ETAG,
-  IF_NONE_MATCH, VARY,
+  HeaderMap, HeaderValue, ACCEPT_ENCODING, ACCEPT_RANGES, CONTENT_ENCODING, CONTENT_LENGTH,
+  CONTENT_RANGE, CONTENT_TYPE, ETAG, IF_NONE_MATCH, IF_RANGE, RANGE, VARY,
 };
 use hyper::{Response, StatusCode};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use std::io;
 use std::path::Path;
-use tokio::io::BufReader;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio_util::io::ReaderStream;
 
 /// 响应体统一用 boxed body，错误类型固定为 io::Error（读文件/解压都可能失败）。
@@ -206,7 +206,86 @@ pub async fn send_file(
   etag: &str,
   gzip: bool,
 ) -> io::Result<Response<ResBody>> {
-  let file = tokio::fs::File::open(filepath).await?;
+  send_file_with_range(filepath, len, etag, gzip, None).await
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum RangeSelection {
+  Full,
+  Partial(u64, u64),
+  Unsatisfiable,
+}
+
+/// 仅处理单个 bytes 范围；不支持的单位、多范围和非法语法均忽略。
+pub(crate) fn select_range(headers: &HeaderMap, len: u64, etag: &str) -> RangeSelection {
+  use RangeSelection::*;
+
+  // 没有 Last-Modified 验证器，因此日期形式的 If-Range 保守地回退完整响应。
+  if let Some(value) = headers.get(IF_RANGE) {
+    if value.to_str().ok().map(str::trim) != Some(etag) {
+      return Full;
+    }
+  }
+  let mut values = headers.get_all(RANGE).iter();
+  let Some(value) = values.next() else {
+    return Full;
+  };
+  if values.next().is_some() {
+    return Full;
+  }
+  let Ok(value) = value.to_str() else {
+    return Full;
+  };
+  let Some(spec) = value.trim().strip_prefix("bytes=") else {
+    return Full;
+  };
+  let Some((start, end)) = spec.split_once('-') else {
+    return Full;
+  };
+  let number = |s: &str| {
+    if !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) {
+      s.parse::<u64>().ok()
+    } else {
+      None
+    }
+  };
+  if start.is_empty() {
+    let Some(suffix) = number(end) else {
+      return Full;
+    };
+    if suffix == 0 || len == 0 {
+      return Unsatisfiable;
+    }
+    return Partial(len.saturating_sub(suffix), len - 1);
+  }
+  let Some(start) = number(start) else {
+    return Full;
+  };
+  let end = if end.is_empty() {
+    u64::MAX
+  } else {
+    let Some(end) = number(end) else {
+      return Full;
+    };
+    if end < start {
+      return Full;
+    }
+    end
+  };
+  if start >= len {
+    return Unsatisfiable;
+  }
+  Partial(start, end.min(len - 1))
+}
+
+pub(crate) async fn send_file_with_range(
+  filepath: &Path,
+  len: u64,
+  etag: &str,
+  gzip: bool,
+  range: Option<(u64, u64)>,
+) -> io::Result<Response<ResBody>> {
+  let mut file = tokio::fs::File::open(filepath).await?;
   let mut res = response(StatusCode::OK);
   {
     let headers = res.headers_mut();
@@ -216,6 +295,10 @@ pub async fn send_file(
     );
     headers.insert(VARY, HeaderValue::from_static("accept-encoding"));
     headers.insert(CONTENT_TYPE, HeaderValue::from_static(mime_for(filepath)));
+    headers.insert(
+      ACCEPT_RANGES,
+      HeaderValue::from_static(if gzip { "none" } else { "bytes" }),
+    );
   }
 
   if gzip {
@@ -224,10 +307,21 @@ pub async fn send_file(
       .insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
     *res.body_mut() = stream_body(GzipEncoder::new(BufReader::new(file)));
   } else {
+    let body_len = if let Some((start, end)) = range {
+      file.seek(io::SeekFrom::Start(start)).await?;
+      *res.status_mut() = StatusCode::PARTIAL_CONTENT;
+      res.headers_mut().insert(
+        CONTENT_RANGE,
+        HeaderValue::from_str(&format!("bytes {start}-{end}/{len}")).unwrap(),
+      );
+      end - start + 1
+    } else {
+      len
+    };
     res
       .headers_mut()
-      .insert(CONTENT_LENGTH, HeaderValue::from(len));
-    *res.body_mut() = stream_body(file);
+      .insert(CONTENT_LENGTH, HeaderValue::from(body_len));
+    *res.body_mut() = stream_body(file.take(body_len));
   }
   Ok(res)
 }
